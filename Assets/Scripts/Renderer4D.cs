@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[ExecuteInEditMode]
 public class Renderer4D : MonoBehaviour
 {
     [System.Serializable]
@@ -23,7 +24,8 @@ public class Renderer4D : MonoBehaviour
     public RenderType renderType; // How to render the object
 
     public bool cool4D = false;
-    public Mesh4D mesh4D; // This renderers mesh
+    [HideInInspector]
+    public Mesh4D mesh4D; // This objects mesh
 
     public Material material; // material
     public Material outlineMaterial; // outline material
@@ -41,11 +43,19 @@ public class Renderer4D : MonoBehaviour
 
     private MeshCollider collider; // The objects collider
 
+
+    public string modelFilename;
+
+    public bool regen;
+
     [HideInInspector]
     public Player4D player;
 
     private void Start()
     {
+        if (modelFilename.Length > 0)
+            mesh4D = LoadModel.LoadModelFromFile(modelFilename);
+
         Mesh mesh = new Mesh();
         mesh.Clear();
 
@@ -74,6 +84,12 @@ public class Renderer4D : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (regen)
+        {
+            Start();
+            regen = false;
+        }
+
         if (filter && transform4D)
             UpdateMesh();
     }
@@ -81,13 +97,20 @@ public class Renderer4D : MonoBehaviour
     // Updates the mesh each frame
     private void UpdateMesh() 
     {
-        Vector4 playerPos = player.transform4D.position;
-        Vector6 playerRot = player.transform4D.rotation;
-        referenceW = playerPos.w;
 
+        Vector4 viewOffset = new Vector4();
+        Vector6 viewRot = new Vector6();
+
+        if (player)
+        {
+            viewOffset = player.transform4D.position;
+            viewRot = player.transform4D.rotation;
+        }
+
+        referenceW = viewOffset.w;
         renderer.material = material;
 
-        Vector4 position = transform4D.position - playerPos;
+        Vector4 position = transform4D.position - viewOffset;
         Vector6 rotation = transform4D.rotation;
         Vector4 scale = transform4D.scale;
 
@@ -99,9 +122,9 @@ public class Renderer4D : MonoBehaviour
         verts4D = Translate(verts4D, position);
 
 
-        verts4D = Rotate(verts4D, -playerRot);
+        verts4D = Rotate(verts4D, -viewRot);
 
-        verts4D = Translate(verts4D, playerPos);
+        verts4D = Translate(verts4D, viewOffset);
 
         verts4D = Scale(verts4D, scale);
 
@@ -119,10 +142,10 @@ public class Renderer4D : MonoBehaviour
                 break;
         }
 
-        Mesh mesh = filter.mesh;
+        Mesh mesh = filter.sharedMesh;
         Mesh meshO = new Mesh();
         if (filterO)
-            meshO = filterO.mesh;
+            meshO = filterO.sharedMesh;
 
         if (verts3D.Length > 0)
         {

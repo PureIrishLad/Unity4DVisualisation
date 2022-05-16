@@ -11,35 +11,6 @@ public class Transform4D : MonoBehaviour
 
     private void Update()
     {
-        if (rotation.xy > 2 * Mathf.PI)
-            rotation.xy = 0;
-        else if (rotation.xy < 0)
-            rotation.xy = 2 * Mathf.PI;
-
-        if (rotation.xz > 2 * Mathf.PI)
-            rotation.xz = 0;
-        else if (rotation.xz < 0)
-            rotation.xz = 2 * Mathf.PI;
-
-        if (rotation.xw > 2 * Mathf.PI)
-            rotation.xw = 0;
-        else if (rotation.xw < 0)
-            rotation.xw = 2 * Mathf.PI;
-
-        if (rotation.yz > 2 * Mathf.PI)
-            rotation.yz = 0;
-        else if (rotation.yz < 0)
-            rotation.yz = 2 * Mathf.PI;
-
-        if (rotation.yw > 2 * Mathf.PI)
-            rotation.yw = 0;
-        else if (rotation.yw < 0)
-            rotation.yw = 2 * Mathf.PI;
-
-        if (rotation.zw > 2 * Mathf.PI)
-            rotation.zw = 0;
-        else if (rotation.zw < 0)
-            rotation.zw = 2 * Mathf.PI;
-
+        rotation %= 2 * Mathf.PI;
     }
 }

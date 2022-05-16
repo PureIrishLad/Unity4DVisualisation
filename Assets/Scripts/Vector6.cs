@@ -50,4 +50,10 @@ public class Vector6
     {
         return new Vector6(-a.xy, -a.xz, -a.xw, -a.yz, -a.yz, -a.zw);
     }
+
+    public static Vector6 operator %(Vector6 a, float m)
+    {
+        a += new Vector6(1, 1, 1, 1, 1, 1) * m;
+        return new Vector6(a.xy % m, a.xz % m, a.xw % m, a.yz % m, a.yw % m, a.zw % m);
+    }
 }

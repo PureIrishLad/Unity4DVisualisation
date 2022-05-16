@@ -32,6 +32,10 @@ public class Player4D : MonoBehaviour
         transform4D.position.y = transform.position.y;
         transform4D.position.z = transform.position.z;
 
+        transform4D.rotation.xw = transform.rotation.x;
+        transform4D.rotation.yw = transform.rotation.y;
+        transform4D.rotation.zw = transform.rotation.z;
+
         float wMovement = Input.GetAxis("W Axis") * wAxisSpeed * Time.deltaTime;
         float xyRot = Input.GetAxis("XY Axis") * planeRotationSpeed * Time.deltaTime;
         float xzRot = Input.GetAxis("XZ Axis") * planeRotationSpeed * Time.deltaTime;

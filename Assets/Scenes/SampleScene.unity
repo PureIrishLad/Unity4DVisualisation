@@ -738,6 +738,14 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 7311095232510526014, guid: b35df9b07e694b2478ca4b9a9deb6adf, type: 3}
+      propertyPath: m_DynamicOccludee
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7311095232881393489, guid: b35df9b07e694b2478ca4b9a9deb6adf, type: 3}
+      propertyPath: m_DynamicOccludee
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7311095233075644011, guid: b35df9b07e694b2478ca4b9a9deb6adf, type: 3}
       propertyPath: position.w
       value: 4
@@ -745,6 +753,10 @@ PrefabInstance:
     - target: {fileID: 7311095233075644011, guid: b35df9b07e694b2478ca4b9a9deb6adf, type: 3}
       propertyPath: position.x
       value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 7311095233075644012, guid: b35df9b07e694b2478ca4b9a9deb6adf, type: 3}
+      propertyPath: projectType
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7311095233075644013, guid: b35df9b07e694b2478ca4b9a9deb6adf, type: 3}
       propertyPath: m_RootOrder
@@ -803,6 +815,14 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 579475621236993503, guid: 0d9936306d587f2498de84e00af3e2a6, type: 3}
+      propertyPath: m_DynamicOccludee
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 579475621540892848, guid: 0d9936306d587f2498de84e00af3e2a6, type: 3}
+      propertyPath: m_DynamicOccludee
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 579475621735131530, guid: 0d9936306d587f2498de84e00af3e2a6, type: 3}
       propertyPath: position.w
       value: 5
@@ -865,7 +885,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 7e6a11afe1a760b489b1bb8d25ad267e, type: 2}
     - target: {fileID: 579475621735131533, guid: 0d9936306d587f2498de84e00af3e2a6, type: 3}
       propertyPath: projectType
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 579475621735131533, guid: 0d9936306d587f2498de84e00af3e2a6, type: 3}
       propertyPath: outlineMaterial

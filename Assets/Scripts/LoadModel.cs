@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 
+// Loads a 4-D model from a file, models must be in an exact order, down to the order in which triangles are drawn
 public class LoadModel
 {
     public static Mesh4D LoadModelFromFile(string filename)
@@ -13,42 +14,46 @@ public class LoadModel
 
         string[] data = text.Split(',');
 
+        // Extracting vertices from data
         int numVertices = int.Parse(data[0]);
-        Vector4[] vertices = new Vector4[numVertices];
+        Vertex[] vertices = new Vertex[numVertices];
         int start = 1;
         int end = start + numVertices * 4;
         for (int i = start; i < end; i += 4)
         {
-            Vector4 vertex = new Vector4();
-            vertex.x = float.Parse(data[i]);
-            vertex.y = float.Parse(data[i + 1]);
-            vertex.z = float.Parse(data[i + 2]);
-            vertex.w = float.Parse(data[i + 3]);
+            Vertex vertex = new Vertex();
+            vertex.position.x = float.Parse(data[i]);
+            vertex.position.y = float.Parse(data[i + 1]);
+            vertex.position.z = float.Parse(data[i + 2]);
+            vertex.position.w = float.Parse(data[i + 3]);
 
             vertices[(i - 1) / 4] = vertex;
         }
 
-        int numIndices = int.Parse(data[end]);
-        int[] indices = new int[numIndices];
+        // Extracting triangles from data
+        int numTriangles = int.Parse(data[end]);
+        Triangle[] triangles = new Triangle[numTriangles];
         start = end + 1;
-        end = start + numIndices;
-        for (int i = start; i < end; i++)
+        end = start + numTriangles * 3;
+        for (int i = start; i < end; i += 3)
         {
-            indices[i - start] = int.Parse(data[i]);
+            Triangle triangle = new Triangle();
+            triangle[0] = int.Parse(data[i]);
+            triangle[1] = int.Parse(data[i + 1]);
+            triangle[2] = int.Parse(data[i + 2]);
+            triangles[(i - start) / 3] = triangle;
         }
 
-        int numIndicesL = int.Parse(data[end]);
-        int[] indicesL = new int[numIndicesL];
-        start = end + 1;
-        end = start + numIndicesL;
-        for (int i = start; i < end; i++)
-        {
-            indicesL[i - start] = int.Parse(data[i]);
-        }
-
+        // Setting mesh data
         mesh.vertices = vertices;
-        mesh.indices = indices;
-        mesh.indicesL = indicesL;
+        mesh.triangles = triangles;
+
+        // Generating lines from triangles, this is necessary for generating the cross section
+        mesh.lines = Mesh4D.GenerateLines(triangles);
+
+        // Also necessary is telling each vertex which vertices it is connected to
+        for (int i = 0; i < mesh.vertices.Length; i++)
+            mesh.vertices[i].connections = Mesh4D.GetConnections(i, mesh.lines);
 
         return mesh;
     }

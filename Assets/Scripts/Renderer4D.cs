@@ -1,64 +1,45 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
-[ExecuteInEditMode]
+// Renderer for 4-Dimensional Objects
 public class Renderer4D : MonoBehaviour
 {
     [System.Serializable]
-    public enum ProjectType
-    {
-        Intersect, 
-        Flatten,
-    }
-
-    [System.Serializable]
     public enum RenderType
     {
-        Volume,
-        Outline,
-        VolumeOutline
+        Projection,
+        CrossSection
     }
 
-    public ProjectType projectType; // How to project the points from 4D to 3D
     public RenderType renderType; // How to render the object
 
-    public bool cool4D = false;
     [HideInInspector]
     public Mesh4D mesh4D; // This objects mesh
-
-    public Material material; // material
-    public Material outlineMaterial; // outline material
 
     [HideInInspector]
     public float referenceW; // Origin w, normally the players w position
 
     private MeshFilter filter; // Mesh filter
-    private MeshRenderer renderer; // Mesh renderer
 
     private MeshFilter filterO; // Outline filter
-    private MeshRenderer rendererO; // Outline renderer
 
     private Transform4D transform4D; // The 4d transform component
 
-    private MeshCollider collider; // The objects collider
-
-
     public string modelFilename;
-
-    public bool regen;
 
     [HideInInspector]
     public Player4D player;
 
     private void Start()
     {
+        // Loading the model from a file
         if (modelFilename.Length > 0)
             mesh4D = LoadModel.LoadModelFromFile(modelFilename);
 
         Mesh mesh = new Mesh();
         mesh.Clear();
-
         Mesh meshO = new Mesh();
         meshO.Clear();
 
@@ -66,200 +47,151 @@ public class Renderer4D : MonoBehaviour
         {
             if (child.name == "Volume")
             {
-                renderer = child.GetComponent<MeshRenderer>();
                 filter = child.GetComponent<MeshFilter>();
                 filter.mesh = mesh;
             }
             else if (child.name == "Outline")
             {
-                rendererO = child.GetComponent<MeshRenderer>();
                 filterO = child.GetComponent<MeshFilter>();
                 filterO.mesh = meshO;
             }
         }
 
-        collider = GetComponent<MeshCollider>();
         transform4D = GetComponent<Transform4D>();
     }
 
     private void LateUpdate()
     {
-        if (regen)
+        if (transform4D.moved || player.transform4D.moved)
         {
-            Start();
-            regen = false;
-        }
-
-        if (filter && transform4D)
             UpdateMesh();
+            transform4D.moved = false;
+        }
     }
 
-    // Updates the mesh each frame
-    private void UpdateMesh() 
+    // Updates the mesh
+    private void UpdateMesh()
     {
+        // Getting this objects offset
+        Vector4 offset = transform4D.position;
+        referenceW = player.transform4D.position.w;
 
-        Vector4 viewOffset = new Vector4();
-        Vector6 viewRot = new Vector6();
+        Vertex[] vertices = new Vertex[mesh4D.vertices.Length];
+        Line[] lines = mesh4D.lines;
 
-        if (player)
+        // Getting the rotation matrix of this object
+        Matrix4x4 R = Transform4D.RotationMatrix(transform4D.rotation);
+        for (int i = 0; i < vertices.Length; i++)
         {
-            viewOffset = player.transform4D.position;
-            viewRot = player.transform4D.rotation;
+            // We make a copy of the meshes vertex data so that we don't overwrite it
+            vertices[i] = new Vertex();
+            vertices[i].position = mesh4D.vertices[i].position;
+            vertices[i].connections = new int[mesh4D.vertices[i].connections.Length];
+            mesh4D.vertices[i].connections.CopyTo(vertices[i].connections, 0);
+
+            // Applying rotation
+            vertices[i].position = Transform4D.Rotate(vertices[i].position, R);
         }
 
-        referenceW = viewOffset.w;
-        renderer.material = material;
+        Vector3[] verts = new Vector3[0];
+        int[] indices = new int[0];
+        int[] triangles = new int[0];
 
-        Vector4 position = transform4D.position - viewOffset;
-        Vector6 rotation = transform4D.rotation;
-        Vector4 scale = transform4D.scale;
-
-        Vector4[] verts4D = new Vector4[mesh4D.vertices.Length];
-        mesh4D.vertices.CopyTo(verts4D, 0);
-
-        verts4D = Rotate(verts4D, rotation);
-
-        verts4D = Translate(verts4D, position);
-
-
-        verts4D = Rotate(verts4D, -viewRot);
-
-        verts4D = Translate(verts4D, viewOffset);
-
-        verts4D = Scale(verts4D, scale);
-
-        Vector3[] verts3D = new Vector3[0];
-
-        switch (projectType)
+        switch (renderType)
         {
-            case ProjectType.Intersect:
-                // Calculating the new positions for the vertices based on their intercept with w = 0
-                verts3D = Project4DTo3D(verts4D, mesh4D.indicesL);
+            case RenderType.Projection:
+                verts = ProjectTo3D(vertices);
+                indices = Mesh4D.LinesToArray(lines);
+                triangles = Mesh4D.TrianglesToArray(Mesh4D.GenerateTriangles(lines, verts));
                 break;
-            case ProjectType.Flatten:
-                // Flattens all the points to be at w = 0;
-                verts3D = Flatten4DTo3D(verts4D);
+            case RenderType.CrossSection:
+                Tuple<Vertex[], Line[]> t = CrossSection3D(vertices, lines);
+                verts = Mesh4D.VerticesToArray(t.Item1);
+                indices = Mesh4D.LinesToArray(t.Item2);
+                triangles = Mesh4D.TrianglesToArray(Mesh4D.GenerateTriangles(t.Item2, verts));
                 break;
         }
 
-        Mesh mesh = filter.sharedMesh;
-        Mesh meshO = new Mesh();
-        if (filterO)
-            meshO = filterO.sharedMesh;
+        filterO.sharedMesh.Clear();
+        filterO.sharedMesh.SetVertices(verts);
+        filterO.sharedMesh.SetIndices(indices, MeshTopology.Lines, 0);
 
-        if (verts3D.Length > 0)
+        filter.sharedMesh.Clear();
+        filter.sharedMesh.SetVertices(verts);
+        filter.sharedMesh.SetIndices(triangles, MeshTopology.Triangles, 0);
+    }
+
+    // Generates a 3D cross sectional view of a 4D object 
+    private Tuple<Vertex[], Line[]> CrossSection3D(Vertex[] vertices, Line[] lines)
+    {
+        // The vertices to be rendered
+        List<Vertex> verts = new List<Vertex>();
+        // The lines to be drawn between the vertices
+        List<Line> l = new List<Line>();
+
+        // Looping for each edge in the original objects mesh
+        for (int i = 0; i < lines.Length; i++)
         {
-            mesh.SetVertices(verts3D);
-            switch (renderType)
+            int uIndex = lines[i][0];
+            int vIndex = lines[i][1];
+
+            // Getting references to the start and end point vertices of this line
+            Vertex u = vertices[uIndex];
+            Vertex v = vertices[vIndex];
+
+            // Determining if and where the two points intersect with the reference w
+            if (Intersects(u.position, v.position, referenceW, out Tuple<Vector3, Vector3> I))
             {
-                case RenderType.Volume:
-                    mesh.SetIndices(mesh4D.indices, MeshTopology.Triangles, 0);
-                    break;
-                case RenderType.Outline:
-                    mesh.SetIndices(mesh4D.indicesL, MeshTopology.Lines, 0);
-                    if (!outlineMaterial)
-                        outlineMaterial = material;
-                    renderer.material = outlineMaterial;
-                    break;
-                case RenderType.VolumeOutline:
-                    mesh.SetIndices(mesh4D.indices, MeshTopology.Triangles, 0);
-                    if (filterO)
+                // When creating cross sections, sometimes a vertex may seemingly split into multiple other vertices
+                // We need to, for each new vertex we create, give it the original vertices it was connected to so 
+                // that it can properly create lines between them
+                Vertex wu = new Vertex(I.Item1);
+                Vertex wv = new Vertex(I.Item2);
+                wu.connections = u.connections;
+                wv.connections = v.connections;
+                verts.Add(wu);
+                verts.Add(wv);
+
+                // Adding a new line between these vertices
+                Line line = new Line(verts.Count - 2, verts.Count - 1);
+                if (!l.Contains(line))
+                    l.Add(line);
+
+                // We loop through the list of vertices that we know intersect so that we may see if this vertex that intersects
+                // with the reference w is connected to any other vertices that also intersect
+                for (int j = 0; j < verts.Count; j++)
+                {
+                    if (verts[j].IsConnected(uIndex))
                     {
-                        meshO.SetVertices(verts3D);
-                        meshO.SetIndices(mesh4D.indicesL, MeshTopology.Lines, 0);
-
-                        if (rendererO)
-                        {
-                            if (!outlineMaterial)
-                                outlineMaterial = material;
-                            rendererO.material = outlineMaterial;
-                        }
+                        line = new Line(verts.Count - 2, j);
+                        if (!l.Contains(line))
+                            l.Add(line);
                     }
-                    break;
-
+                    else if (verts[j].IsConnected(vIndex))
+                    {
+                        line = new Line(verts.Count - 1, j);
+                        if (!l.Contains(line))
+                            l.Add(line);
+                    }
+                }
             }
 
-            mesh.RecalculateBounds();
-
-
-            if (collider)
-                collider.sharedMesh = mesh;
         }
-        // If there are no vertices it means there were no intersections so we clear the mesh
-        else
-        {
-            mesh.Clear();
-            meshO.Clear();
-        }
+
+        return new Tuple<Vertex[], Line[]>(verts.ToArray(), l.ToArray());
     }
 
-    // Projecects the given 4-Dimensional vertex positions to the 3-Dimensional world
-    private Vector3[] Project4DTo3D(Vector4[] vertices, int[] lineIndices)
+    // Projects the 3D shadow of the 4D object onto the 3D world
+    private Vector3[] ProjectTo3D(Vertex[] vertices)
     {
-        Vector3[] newVertices = new Vector3[vertices.Length];
-        int intersections = 0;
-
-        // We want to loop for each edge in the hypercube, so we use a array of lines
-        for (int i = 0; i < lineIndices.Length; i += 2)
-        {
-            Vector4 start = vertices[lineIndices[i]];
-            Vector4 end = vertices[lineIndices[i + 1]];
-
-            float x = start.x;
-            float y = start.y;
-            float z = start.z;
-            float w = start.w;
-
-            float x2 = end.x;
-            float y2 = end.y;
-            float z2 = end.z;
-
-            // If this line intersects with the w origin
-            if (Intersects(start, end, referenceW))
-            {
-                intersections++;
-
-                // Calculating the vector of the line
-                Vector4 v = end - start;
-
-                // Finding the intercept point t on the line with the 3d world
-                float t = (referenceW - w) / v.w;
-                float t2 = (1 - t);
-
-                if (cool4D)
-                    t2 = t;
-
-                // Calculating the new xyz coords based on t
-                x = x + v.x * t;
-                y = y + v.y * t;
-                z = z + v.z * t;
-
-                x2 = x2 - v.x * t2;
-                y2 = y2 - v.y * t2;
-                z2 = z2 - v.z * t2;
-            }
-
-            newVertices[lineIndices[i]] = new Vector3(x, y, z);
-            newVertices[lineIndices[i + 1]] = new Vector3(x2, y2, z2);
-        }
-
-        // If there are no intersecting points we clear the vertices
-        if (intersections == 0)
-            newVertices = new Vector3[0];
-
-        return newVertices;
-    }
-
-    // Flattens the w axis for this object
-    private Vector3[] Flatten4DTo3D(Vector4[] vertices)
-    {
-        Vector3[] newVertices = new Vector3[vertices.Length];
+        Vector3[] verts = new Vector3[vertices.Length];
 
         for (int i = 0; i < vertices.Length; i++)
-            newVertices[i] = vertices[i];
+            verts[i] = vertices[i].position;
 
-        return newVertices;
+        return verts;
     }
+
 
     // Translates the objects vertices by a given position
     private Vector4[] Translate(Vector4[] vertices, Vector4 translation)
@@ -275,6 +207,7 @@ public class Renderer4D : MonoBehaviour
         return output;
     }
 
+    // Scales the object
     private Vector4[] Scale(Vector4[] vertices, Vector4 scale)
     {
         Vector4[] output = new Vector4[vertices.Length];
@@ -287,155 +220,30 @@ public class Renderer4D : MonoBehaviour
         return output;
     }
 
-    // Rotations performed in 4D are done across 2D planes and not 1D points like they are in a 3D space
-
-    private Vector4[] Rotate(Vector4[] vertices, Vector6 rotation)
+    // Returns true if the line between u and v intersects with the given w value, also outputs the intersect point if there is an intersection
+    private bool Intersects(Vector4 u, Vector4 v, float w, out Tuple<Vector3, Vector3> I)
     {
+        // We know this line intersects if one point is on or behind the axis and the other is in front or on the axis
+        bool intersects = u.w >= w && v.w <= w || v.w >= w && u.w <= w;
 
-        vertices = RotateZW(vertices, rotation.zw);
-
-        vertices = RotateYW(vertices, rotation.yw);
-
-        vertices = RotateYZ(vertices, rotation.yz);
-
-        vertices = RotateXW(vertices, rotation.xw);
-
-        vertices = RotateXZ(vertices, rotation.xz);
-
-        vertices = RotateXY(vertices, rotation.xy);
-
-        return vertices;
-    }
-    private Vector4[] RotateXY(Vector4[] vertices, float angle)
-    {
-        Matrix4x4 R = new Matrix4x4();
-        R[0, 0] = 1;
-        R[1, 1] = 1;
-        float c = Mathf.Cos(angle);
-        float s = Mathf.Sin(angle);
-
-        R[2, 2] = c;
-        R[3, 3] = c;
-        R[2, 3] = -s;
-        R[3, 2] = s;
-
-        for (int i = 0; i < vertices.Length; i++)
-            vertices[i] = MM(R, vertices[i]);
-
-        return vertices;
-    }
-    private Vector4[] RotateXZ(Vector4[] vertices, float angle)
-    {
-        Matrix4x4 R = new Matrix4x4();
-        R[0, 0] = 1;
-        R[2, 2] = 1;
-        float c = Mathf.Cos(angle);
-        float s = Mathf.Sin(angle);
-
-        R[1, 1] = c;
-        R[3, 3] = c;
-        R[1, 3] = -s;
-        R[3, 1] = s;
-
-        for (int i = 0; i < vertices.Length; i++)
-            vertices[i] = MM(R, vertices[i]);
-
-        return vertices;
-    }
-    private Vector4[] RotateXW(Vector4[] vertices, float angle)
-    {
-        Matrix4x4 R = new Matrix4x4();
-        R[0, 0] = 1;
-        R[3, 3] = 1;
-        float c = Mathf.Cos(angle);
-        float s = Mathf.Sin(angle);
-
-        R[1, 1] = c;
-        R[2, 2] = c;
-        R[1, 2] = -s;
-        R[2, 1] = s;
-
-        for (int i = 0; i < vertices.Length; i++)
-            vertices[i] = MM(R, vertices[i]);
-
-        return vertices;
-    }
-    private Vector4[] RotateYZ(Vector4[] vertices, float angle)
-    {
-        Matrix4x4 R = new Matrix4x4();
-        R[1, 1] = 1;
-        R[2, 2] = 1;
-        float c = Mathf.Cos(angle);
-        float s = Mathf.Sin(angle);
-
-        R[0, 0] = c;
-        R[3, 3] = c;
-        R[0, 3] = -s;
-        R[3, 0] = s;
-
-        for (int i = 0; i < vertices.Length; i++)
-            vertices[i] = MM(R, vertices[i]);
-
-        return vertices;
-    }
-    private Vector4[] RotateYW(Vector4[] vertices, float angle)
-    {
-        Matrix4x4 R = new Matrix4x4();
-        R[1, 1] = 1;
-        R[3, 3] = 1;
-        float c = Mathf.Cos(angle);
-        float s = Mathf.Sin(angle);
-
-        R[0, 0] = c;
-        R[2, 2] = c;
-        R[0, 2] = -s;
-        R[2, 0] = s;
-
-        for (int i = 0; i < vertices.Length; i++)
-            vertices[i] = MM(R, vertices[i]);
-
-        return vertices;
-    }
-    private Vector4[] RotateZW(Vector4[] vertices, float angle)
-    {
-        Matrix4x4 R = new Matrix4x4();
-        R[2, 2] = 1;
-        R[3, 3] = 1;
-        float c = Mathf.Cos(angle);
-        float s = Mathf.Sin(angle);
-
-        R[0, 0] = c;
-        R[1, 1] = c;
-        R[0, 1] = -s;
-        R[1, 0] = s;
-
-        for (int i = 0; i < vertices.Length; i++)
-            vertices[i] = MM(R, vertices[i]);
-
-        return vertices;
-    }
-
-    // Returns true if the line given by start and end intersects at the point w on the w-axis
-    private bool Intersects(Vector4 start, Vector4 end, float w)
-    {
-        return start.w >= w && end.w <= w || start.w <= w && end.w >= w;
-    }
-
-    // Matrix multiplication between a 4x4 and 1x4 matrix
-    private Vector4 MM(Matrix4x4 A, Vector4 B)
-    {
-        Vector4 output = new Vector4();
-
-        for (int r = 0; r < 4; r++)
+        if (!intersects)
         {
-            float sum = 0;
+            I = new Tuple<Vector3, Vector3>(u, v);
+            return false;
+        }
+        else
+        {
+            Vector4 d = v - u;
 
-            for (int i = 0; i < 4; i++)
-                sum += A[r, i] * B[i];
+            float t = (w - u.w) / d.w;
 
-            output[r] = sum;
+            Vector4 wu = u + t * d;
+            Vector4 wv = v - (1 - t) * d;
+
+            I = new Tuple<Vector3, Vector3>(wu, wv);
+
+            return true;
         }
 
-        return output;
     }
 }

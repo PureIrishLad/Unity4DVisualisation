@@ -6,232 +6,164 @@ using UnityEngine;
 public class Mesh4D
 {
     [HideInInspector]
-    public Vector4[] vertices;
+    public Vertex[] vertices;
     [HideInInspector]
-    // Indicies used for drawing triangles
-    public int[] indices;
+    public Triangle[] triangles;
     [HideInInspector]
-    // Indices for used for lines, lines are used to determine where a 4d vertex gets drawn in 3d
-    public int[] indicesL;
+    public Line[] lines;
 
     public Mesh4D()
     {
-        vertices = new Vector4[0];
-        indices = new int[0];
-        indicesL = new int[0];
-    }
-    public Mesh4D(Vector4[] vertices, int[] indices, int[] indicesL)
-    {
-        this.vertices = vertices;
-        this.indices = indices;
-        this.indicesL = indicesL;
+        
     }
 
-    // Default hypercube mesh
-    public static Mesh4D Hypercube = new Mesh4D(new Vector4[16]
+    // Converts the triangle data type to an array of ints
+    public static int[] TrianglesToArray(Triangle[] triangles)
     {
-        new Vector4(-1, -1, -1, -1),
-        new Vector4( 1, -1, -1, -1),
-        new Vector4( 1,  1, -1, -1),
-        new Vector4(-1,  1, -1, -1),
+        int[] indices = new int[triangles.Length * 3];
 
-        new Vector4( 1, -1,  1, -1),
-        new Vector4(-1, -1,  1, -1),
-        new Vector4(-1,  1,  1, -1),
-        new Vector4( 1,  1,  1, -1),
+        for (int i = 0; i < triangles.Length; i++)
+        {
+            indices[i * 3] = triangles[i][0];
+            indices[i * 3 + 1] = triangles[i][1];
+            indices[i * 3 + 2] = triangles[i][2];
+        }
 
-        new Vector4(-2, -2, -2,  1),
-        new Vector4( 2, -2, -2,  1),
-        new Vector4( 2,  2, -2,  1),
-        new Vector4(-2,  2, -2,  1),
-
-        new Vector4( 2, -2,  2,  1),
-        new Vector4(-2, -2,  2,  1),
-        new Vector4(-2,  2,  2,  1),
-        new Vector4( 2,  2,  2,  1)
-    }, new int[288]
+        return indices;
+    }
+    // Converts the line data type to an array of ints
+    public static int[] LinesToArray(Line[] lines)
     {
-        0,  3,  1,  1,  3,  2,
-        4,  7,  5,  5,  7,  6,
-        5,  6,  0,  0,  6,  3,
-        1,  2,  4,  4,  2,  7,
-        3,  6,  2,  2,  6,  7,
-        0,  1,  5,  5,  1,  4,
+        int[] indices = new int[lines.Length * 2];
 
-        8,  11, 9,  9,  11, 10,
-        12, 15, 13, 13, 15, 14,
-        13, 14, 8,  8,  14, 11,
-        9,  10, 12, 12, 10, 15,
-        11, 14, 10, 10, 14, 15,
-        8,  9,  13, 13,  9, 12,
+        for (int i = 0; i < lines.Length; i++)
+        {
+            indices[i * 2] = lines[i][0];
+            indices[i * 2 + 1] = lines[i][1];
+        }
 
-        2,  3,  1,  1,  3,  0,
-        6,  7,  5,  5,  7,  4,
-        3,  6,  0,  0,  6,  5,
-        7,  2,  4,  4,  2,  1,
-        7,  6,  2,  2,  6,  3,
-        4,  1,  5,  5,  1,  0,
-
-        10, 11, 9,  9,  11, 8,
-        14, 15, 13, 13, 15, 12,
-        11, 14, 8,  8,  14, 13,
-        15, 10, 12, 12, 10, 9,
-        15, 14, 10, 10, 14, 11,
-        12, 9,  13, 13,  9, 8,
-
-        2,  10, 1,  1,  10, 9,
-        8,  11, 0,  0,  11, 3,
-        2,  3,  10, 10, 3,  11,
-        8,  0,  9,  9,  0,  1,
-
-        4,  5,  12, 12, 5,  13,
-        6,  14, 5,  5,  14, 13,
-        15, 14, 7,  7,  14, 6,
-        15, 7,  12, 12, 7,  4,
-
-        8,  13, 0,  0,  13, 5,
-        6,  14, 3,  3,  14, 11,
-        13, 14, 5,  5,  14, 6,
-        3,  11, 0,  0,  11, 8,
-
-        1,  4,  9,  9,  4,  12,
-        15, 7,  10, 10, 7,  2,
-        9,  10, 1,  1,  10, 2,
-        4,  7,  12, 12, 7,  15,
-
-        13, 5,  12, 12, 5,  4,
-        5,  13, 0,  0,  13, 8,
-        12, 4,  9,  9,  4,  1,
-        1,  0,  9,  9,  0,  8,
-
-        6,  14, 7,  7,  14, 15,
-        11, 14, 3,  3,  14, 6,
-        2,  7,  10, 10, 7,  15,
-        11, 3,  10, 10, 3,  2
-    }, new int[]
+        return indices;
+    }
+    // Converts the vertex data type to an array of vector3s
+    public static Vector3[] VerticesToArray(Vertex[] vertices)
     {
-        0, 1,
-        1, 2,
-        2, 3,
-        3, 0,
+        Vector3[] verts = new Vector3[vertices.Length];
 
-        4, 5,
-        5, 6,
-        6, 7,
-        7, 4,
+        for (int i = 0; i < vertices.Length; i++)
+            verts[i] = vertices[i].position;
 
-        5, 0,
-        6, 3,
-        4, 1,
-        7, 2,
+        return verts;
+    }
 
-        8, 9,
-        9, 10,
-        10, 11,
-        11, 8,
-
-        12, 13,
-        13, 14,
-        14, 15,
-        15, 12,
-
-        13, 8,
-        14, 11,
-        12, 9,
-        15, 10,
-
-        0, 8,
-        1, 9,
-        2, 10,
-        3, 11,
-
-        4, 12,
-        5, 13,
-        6, 14,
-        7, 15,
-    });
-
-    public static Mesh4D Hyperpyramid = new Mesh4D(new Vector4[10]
+    // Takes in a triangle mesh and then generates an array of lines
+    public static Line[] GenerateLines(Triangle[] triangles)
     {
-        new Vector4(-1, -1, -1, -1),
-        new Vector4( 1, -1, -1, -1),
-        new Vector4( 0,  1,  0, -1),
+        //Line[] lines = new Line[triangles.Length * 2];
+        List<Line> lines = new List<Line>();
 
-        new Vector4( 1, -1,  1, -1),
-        new Vector4(-1, -1,  1, -1),
 
-        new Vector4(-2, -2, -2,  1),
-        new Vector4( 2, -2, -2,  1),
-        new Vector4( 0,  2,  0,  1),
+        for (int i = 0; i < triangles.Length; i++)
+        {
+            Line l1 = new Line();
+            Line l2 = new Line();
 
-        new Vector4( 2, -2,  2,  1),
-        new Vector4(-2, -2,  2,  1),
-    }, new int[144]
+            l1[0] = triangles[i][0];
+            l2[0] = triangles[i][0];
+            l1[1] = triangles[i][1];
+            l2[1] = triangles[i][2];
+
+            if (!lines.Contains(l1))
+                lines.Add(l1);
+            if (!lines.Contains(l2))
+                lines.Add(l2);
+
+            /*lines[i * 2] = new Line();
+            lines[i * 2 + 1] = new Line();
+
+            lines[i * 2][0] = triangles[i][0];
+            lines[i * 2 + 1][0] = triangles[i][0];
+
+            lines[i * 2][1] = triangles[i][1];
+            lines[i * 2 + 1][1] = triangles[i][2];*/
+        }
+
+        return lines.ToArray();
+    }
+    // The opposite of the above, takes in an array of lines and generates a triangle mesh
+    public static Triangle[] GenerateTriangles(Line[] lines, Vector3[] vertices)
     {
-        0, 2, 1,
-        3, 2, 4,
-        4, 2, 0,
-        1, 2, 3,
-        4, 0, 3, 3, 0, 1,
+        List<Triangle> triangles = new List<Triangle>();
 
-        1, 2, 0,
-        4, 2, 3,
-        0, 2, 4,
-        3, 2, 1,
-        1, 0, 3, 3, 0, 4,
+        // Looping for each line
+        for (int i = 0; i < lines.Length; i++)
+        {
+            Line l1 = lines[i];
 
-        5, 7, 6,
-        8, 7, 9,
-        9, 7, 5,
-        6, 7, 8,
-        9, 5, 8, 8, 5, 6,
+            // Looking at the other lines in the mesh
+            for (int j = i + 2; j < lines.Length; j++)
+            {
+                Line l2 = lines[j];
 
-        6, 7, 5,
-        9, 7, 8,
-        5, 7, 9,
-        8, 7, 6,
-        6, 5, 8, 8, 5, 9,
+                int intersectIndex = IntersectIndex(l1, l2);
 
-        5, 0, 6, 6, 0, 1,
-        5, 7, 0, 0, 7, 2,
-        1, 2, 6, 6, 2, 7,
+                // If these two lines intersect, we draw a triangle from them
+                if (intersectIndex != -1)
+                {
+                    Triangle t1 = new Triangle(intersectIndex, l1.GetOtherEnd(intersectIndex), l2.GetOtherEnd(intersectIndex));
+                    Triangle t2 = new Triangle(l2.GetOtherEnd(intersectIndex), l1.GetOtherEnd(intersectIndex), intersectIndex);
+                    if (!ContainsTriangle(triangles, t1, vertices))
+                        triangles.Add(t1);
+                    if (!ContainsTriangle(triangles, t2, vertices))
+                        triangles.Add(t2);
+                }
+            }
+        }
 
-        8, 3, 9, 9, 3, 4,
-        8, 7, 3, 3, 7, 2,
-        4, 2, 9, 9, 2, 7,
-
-        9, 4, 5, 5, 4, 0,
-        9, 7, 4, 4, 7, 2,
-        2, 7, 0, 0, 7, 5,
-
-        6, 1, 8, 8, 1, 3,
-        6, 7, 1, 1, 7, 2,
-        3, 2, 8, 8, 2, 7
-
-    }, new int[]
+        return triangles.ToArray();
+    }
+    
+    // Gets the connections of an index u from an array of lines
+    public static int[] GetConnections(int u, Line[] lines)
     {
-        0, 1,
-        1, 2,
-        2, 1,
-        3, 4,
-        4, 2,
-        2, 3,
-        4, 0,
-        3, 1,
+        List<int> connections = new List<int>();
 
-        5, 6,
-        6, 7,
-        7, 5,
-        8, 9,
-        9, 7,
-        7, 8,
-        9, 5,
-        8, 6,
+        foreach (Line line in lines)
+        {
+            int connection = line.GetOtherEnd(u);
+            if (connection != -1)
+                connections.Add(connection);
+        }
 
-        0, 5,
-        1, 6,
-        2, 7,
-        3, 8,
-        4, 9
-    });
+        return connections.ToArray();
+    }
+
+    // Returns the index between two lines where they meet
+    private static int IntersectIndex(Line l1, Line l2)
+    {
+        if (l1[0] == l2[0])
+            return l1[0];
+        else if (l1[0] == l2[1])
+            return l1[0];
+        else if (l1[1] == l2[0])
+            return l1[1];
+        else if (l1[1] == l2[1])
+            return l1[1];
+
+        return -1;
+    }
+
+    private static bool ContainsTriangle(List<Triangle> triangles, Triangle triangle, Vector3[] vertices)
+    {
+        for (int i = 0; i < triangles.Count; i++)
+        {
+            Triangle other = triangles[i];
+
+            if (vertices[triangle[0]] == vertices[other[0]] && vertices[triangle[1]] == vertices[other[1]] && vertices[triangle[2]] == vertices[other[2]])
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

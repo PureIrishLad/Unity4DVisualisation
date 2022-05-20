@@ -24,6 +24,10 @@ public class Vector6
         this.zw = zw;
     }
 
+    public override string ToString()
+    {
+        return "(" + xy + ", " + xz + ", " + xw + ", " + yz + ", " + yw + ", " + zw + ")";
+    }
     public float magnitude => Mathf.Sqrt(xy * xy + xz * xz + xw * xw + yz * yz + yw * yw + zw * zw);
     public Vector6 normalize => this / magnitude;
 
@@ -55,5 +59,15 @@ public class Vector6
     {
         a += new Vector6(1, 1, 1, 1, 1, 1) * m;
         return new Vector6(a.xy % m, a.xz % m, a.xw % m, a.yz % m, a.yw % m, a.zw % m);
+    }
+
+    public override bool Equals(object obj)
+    {
+        Vector6 other = obj as Vector6;
+
+        if (xy == other.xy && xz == other.xz && xw == other.xw && yz == other.yz && yw == other.yw && zw == other.zw)
+            return true;
+
+        return false;
     }
 }
